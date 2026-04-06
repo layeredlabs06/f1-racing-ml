@@ -29,7 +29,7 @@
       color: #c0d8f0;
       font-size: 13px;
       z-index: 100;
-      min-width: 200px;
+      min-width: 210px;
       backdrop-filter: blur(8px);
     }
     #controls h3 {
@@ -61,6 +61,15 @@
     }
     .ctrl-row input[type="checkbox"] {
       accent-color: #ff9030;
+    }
+    .ctrl-row select {
+      background: rgba(30,40,60,0.8);
+      border: 1px solid rgba(60,130,200,0.3);
+      border-radius: 4px;
+      color: #fff;
+      padding: 4px 8px;
+      font-size: 13px;
+      cursor: pointer;
     }
     .ctrl-row .val {
       min-width: 30px;
@@ -103,6 +112,13 @@
   <div id="controls">
     <h3>Settings</h3>
     <div class="ctrl-row">
+      <label>Track</label>
+      <select id="trackSelect">
+        <option value="Monaco">Monaco</option>
+        <option value="Suzuka">Suzuka</option>
+      </select>
+    </div>
+    <div class="ctrl-row">
       <label>Cars</label>
       <input type="number" id="numCars" value="30" min="5" max="100" step="5">
     </div>
@@ -124,7 +140,7 @@
     <button onclick="applySettings()">Apply & Restart</button>
     <button onclick="document.getElementById('controls').style.display='none'; document.getElementById('toggle-btn').style.display='block'">Hide</button>
   </div>
-  <button id="toggle-btn" onclick="document.getElementById('controls').style.display='block'; this.style.display='none'">⚙</button>
+  <button id="toggle-btn" onclick="document.getElementById('controls').style.display='block'; this.style.display='none'">&#9881;</button>
 
   <script>
     function applySettings() {
@@ -133,12 +149,8 @@
       MUTATION_RATE = parseFloat(document.getElementById('mutation').value) || 0.3;
       USE_TIMEOUT = document.getElementById('useTimeout').checked;
       MAX_FRAMES = parseInt(document.getElementById('timeout').value) || 1200;
-      // Reset
-      generation = 1;
-      allTimeBest = 0;
-      cars = [];
-      for (let i = 0; i < NUM_CARS; i++) cars.push(new Car());
-      frameCounter = 0;
+      const selectedTrack = document.getElementById('trackSelect').value;
+      changeTrack(selectedTrack);
     }
     document.getElementById('speed').addEventListener('input', e => {
       document.getElementById('speedVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
@@ -147,6 +159,6 @@
       document.getElementById('mutVal').textContent = parseFloat(e.target.value).toFixed(2);
     });
   </script>
-  <script src="sketch.js?v=6"></script>
+  <script src="sketch.js?v=7"></script>
 </body>
 </html>
