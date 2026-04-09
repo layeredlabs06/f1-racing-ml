@@ -165,23 +165,67 @@ export class Track {
     this._gridMinZ = minZ - this.width - CELL;
     this._gridCols = Math.ceil((maxX - this._gridMinX + this.width + CELL) / CELL) + 1;
     this._gridRows = Math.ceil((maxZ - this._gridMinZ + this.width + CELL) / CELL) + 1;
-    this._grid = new Uint8Array(this._gridCols * this._gridRows);
+    // Two Uint16 slots per cell. 0 = empty; otherwise segment_index + 1.
+    // Two slots is enough to represent a figure-8 crossover: both lanes
+    // can be recorded, and the car picks whichever matches its progress.
+    this._grid = new Uint16Array(this._gridCols * this._gridRows * 2);
 
+    const n = this.points.length;
     const w2 = this.width * this.width;
+    // Two recorded segments must be from truly different parts of the
+    // track (not merely consecutive samples) to count as a crossover.
+    const minSegGap = Math.max(24, Math.floor(n / 24));
+
     for (let row = 0; row < this._gridRows; row++) {
       const pz = this._gridMinZ + row * CELL;
       for (let col = 0; col < this._gridCols; col++) {
         const px = this._gridMinX + col * CELL;
-        for (let i = 0; i < this.points.length; i++) {
-          const j = (i + 1) % this.points.length;
+
+        let best1 = Infinity, idx1 = -1;
+        let best2 = Infinity, idx2 = -1;
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
           const d2 = this._distToSegmentSq(px, pz, this.points[i], this.points[j]);
-          if (d2 < w2) {
-            this._grid[row * this._gridCols + col] = 1;
-            break;
+          if (d2 >= w2) continue;
+
+          // Same local neighborhood as slot #1? Tighten slot #1 only.
+          if (idx1 >= 0 && this._circDist(idx1, i, n) < minSegGap) {
+            if (d2 < best1) {
+              best1 = d2;
+              idx1 = i;
+            }
+            continue;
+          }
+          // Same local neighborhood as slot #2? Tighten slot #2 only.
+          if (idx2 >= 0 && this._circDist(idx2, i, n) < minSegGap) {
+            if (d2 < best2) {
+              best2 = d2;
+              idx2 = i;
+            }
+            continue;
+          }
+          // Genuinely different part of the track — insert sorted.
+          if (d2 < best1) {
+            best2 = best1;
+            idx2 = idx1;
+            best1 = d2;
+            idx1 = i;
+          } else if (d2 < best2) {
+            best2 = d2;
+            idx2 = i;
           }
         }
+
+        const cell = (row * this._gridCols + col) * 2;
+        this._grid[cell] = idx1 >= 0 ? idx1 + 1 : 0;
+        this._grid[cell + 1] = idx2 >= 0 ? idx2 + 1 : 0;
       }
     }
+  }
+
+  _circDist(a, b, n) {
+    const d = Math.abs(a - b);
+    return Math.min(d, n - d);
   }
 
   _distToSegmentSq(px, pz, a, b) {
@@ -210,42 +254,39 @@ export class Track {
     };
   }
 
-  isOnTrack(x, z) {
+  _cellOf(x, z) {
     const col = Math.floor((x - this._gridMinX) / this._cellSize);
     const row = Math.floor((z - this._gridMinZ) / this._cellSize);
-    if (col < 0 || col >= this._gridCols || row < 0 || row >= this._gridRows) return false;
-    return this._grid[row * this._gridCols + col] === 1;
+    if (col < 0 || col >= this._gridCols || row < 0 || row >= this._gridRows) return -1;
+    return (row * this._gridCols + col) * 2;
   }
 
-  getProgress(x, z, lastProgress) {
-    const n = this.points.length;
-    const searchRange = Math.floor(n * 0.15);
-    let closestIdx = lastProgress || 0;
-    let closestDist = Infinity;
+  // Permissive: is there pavement of any lane at this point? Used by ray
+  // sensors which should still see the opposite crossover lane as "road".
+  isOnTrack(x, z) {
+    const cell = this._cellOf(x, z);
+    if (cell < 0) return false;
+    return this._grid[cell] !== 0 || this._grid[cell + 1] !== 0;
+  }
 
-    if (lastProgress !== undefined) {
-      for (let off = -searchRange; off <= searchRange; off++) {
-        const i = (lastProgress + off + n) % n;
-        const dx = x - this.points[i].x;
-        const dz = z - this.points[i].z;
-        const d = dx * dx + dz * dz;
-        if (d < closestDist) {
-          closestDist = d;
-          closestIdx = i;
-        }
-      }
-    } else {
-      for (let i = 0; i < n; i++) {
-        const dx = x - this.points[i].x;
-        const dz = z - this.points[i].z;
-        const d = dx * dx + dz * dz;
-        if (d < closestDist) {
-          closestDist = d;
-          closestIdx = i;
-        }
-      }
-    }
-    return closestIdx;
+  // Strict: returns the new progress index for a car whose previous
+  // progress was `lastProgress`, or -1 if the car has drifted off-track
+  // or onto a lane that is not contiguous with where it was last frame.
+  // At a figure-8 crossover this returns the lane that matches the car's
+  // own progress so it cannot teleport between the two overlapping lanes.
+  findProgressFromCar(x, z, lastProgress) {
+    const cell = this._cellOf(x, z);
+    if (cell < 0) return -1;
+    const s1 = this._grid[cell] - 1;
+    const s2 = this._grid[cell + 1] - 1;
+    if (s1 < 0) return -1;
+    const n = this.points.length;
+    const window = Math.max(20, Math.floor(n * 0.08));
+    const d1 = this._circDist(s1, lastProgress, n);
+    if (s2 < 0) return d1 <= window ? s1 : -1;
+    const d2 = this._circDist(s2, lastProgress, n);
+    if (d1 <= d2) return d1 <= window ? s1 : (d2 <= window ? s2 : -1);
+    return d2 <= window ? s2 : (d1 <= window ? s1 : -1);
   }
 
   castRay(x, z, angle) {

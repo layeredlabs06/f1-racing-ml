@@ -14,8 +14,8 @@ export class Car {
     this.speed = 0;
     this.alive = true;
     this.score = 0;
-    this.maxProgress = track.getProgress(this.pos.x, this.pos.z);
-    this.lastProgress = this.maxProgress;
+    this.maxProgress = 0;
+    this.lastProgress = 0;
     this.totalProgress = 0;
     this.stuckFrames = 0;
     this.lapTime = 0;
@@ -47,17 +47,30 @@ export class Car {
     this.pos.x += Math.cos(this.angle) * this.speed;
     this.pos.z += Math.sin(this.angle) * this.speed;
 
-    if (!this.track.isOnTrack(this.pos.x, this.pos.z)) {
+    // Strict progress check: returns -1 if the car drifted off-track OR
+    // onto a non-contiguous lane (the wrong side of a figure-8 crossover).
+    const progress = this.track.findProgressFromCar(
+      this.pos.x, this.pos.z, this.lastProgress,
+    );
+    if (progress < 0) {
       this.alive = false;
       return;
     }
 
-    const progress = this.track.getProgress(this.pos.x, this.pos.z, this.lastProgress);
+    // Kill fast if facing more than ~100° from the track tangent — catches
+    // cars that spin around and start driving the wrong way on a corner.
+    const tan = this.track.tangents[progress];
+    const fwdDot = Math.cos(this.angle) * tan.x + Math.sin(this.angle) * tan.z;
+    if (fwdDot < -0.25) {
+      this.alive = false;
+      return;
+    }
+
     this.lastProgress = progress;
 
     const n = this.track.points.length;
     const diff = (progress - this.maxProgress + n) % n;
-    if (diff > 0 && diff < n * 0.5) {
+    if (diff > 0 && diff < n * 0.25) {
       this.maxProgress = progress;
       this.totalProgress += diff;
       this.stuckFrames = 0;
@@ -68,7 +81,7 @@ export class Car {
       }
     } else {
       this.stuckFrames++;
-      if (this.stuckFrames > 300) this.alive = false;
+      if (this.stuckFrames > 180) this.alive = false;
     }
     this.score = Math.max(this.score, this.totalProgress);
   }
