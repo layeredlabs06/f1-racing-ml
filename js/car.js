@@ -9,7 +9,7 @@ export class Car {
   constructor(track, brain, teamIdx, speedMult) {
     this.track = track;
     const start = track.getStartPos();
-    this.pos = { x: start.pos.x, z: start.pos.z };
+    this.pos = { x: start.pos.x, y: start.pos.y || 0, z: start.pos.z };
     this.angle = start.angle;
     this.speed = 0;
     this.alive = true;
@@ -25,7 +25,7 @@ export class Car {
     this.team = F1_TEAMS[teamIdx % F1_TEAMS.length];
     this.sensors = new Array(SENSOR_ANGLES.length).fill(0);
     this.group = buildCarMesh(this.team);
-    this.group.position.set(this.pos.x, 0.6, this.pos.z);
+    this.group.position.set(this.pos.x, this.pos.y + 0.6, this.pos.z);
     // Local forward is +Z; world angle A maps to rotation.y = π/2 − A
     this.group.rotation.y = Math.PI / 2 - this.angle;
   }
@@ -67,6 +67,7 @@ export class Car {
     }
 
     this.lastProgress = progress;
+    this.pos.y = this.track.getHeightAtProgress(progress);
 
     const n = this.track.points.length;
     const diff = (progress - this.maxProgress + n) % n;
@@ -88,6 +89,7 @@ export class Car {
 
   syncMesh() {
     this.group.position.x = this.pos.x;
+    this.group.position.y = (this.pos.y || 0) + 0.6;
     this.group.position.z = this.pos.z;
     this.group.rotation.y = Math.PI / 2 - this.angle;
     const opacity = this.alive || this.finished ? 1 : 0.12;

@@ -44,6 +44,14 @@ export const TRACK_LAYOUTS = {
       [128.57,-275.18], [123.1,-279.97], [118.03,-285.09],
     ],
     width: 17,
+    // Monaco has ~42 m of real elevation: climb from Ste Devote through
+    // Beau Rivage and Massenet to Casino Square, descent through Mirabeau
+    // and the Grand Hotel hairpin, tunnel drop, and flat chicane/harbor.
+    elevation: [
+      [0.00, 0],  [0.06, 4],  [0.14, 14], [0.22, 20], [0.32, 22],
+      [0.42, 14], [0.52, 6],  [0.62, -2], [0.72, -6], [0.82, -3],
+      [0.92, -1], [1.00, 0],
+    ],
   },
   // Suzuka International Racing Course — 5807 m, 171 surveyed points
   Suzuka: {
@@ -79,8 +87,29 @@ export const TRACK_LAYOUTS = {
       [474.44,-224.09], [498.74,-201.49], [523.69,-173.66],
     ],
     width: 17,
+    // Suzuka rolling terrain, relatively flat overall
+    elevation: [
+      [0.00, 2], [0.15, 5], [0.30, 2], [0.45, -2],
+      [0.60, 0], [0.75, 3], [0.90, 5], [1.00, 2],
+    ],
   },
 };
+
+// Linearly interpolate an [[t, h], ...] elevation table at normalized t.
+function sampleElevation(profile, t) {
+  if (!profile || profile.length === 0) return 0;
+  if (t <= profile[0][0]) return profile[0][1];
+  if (t >= profile[profile.length - 1][0]) return profile[profile.length - 1][1];
+  for (let i = 0; i < profile.length - 1; i++) {
+    const [t0, h0] = profile[i];
+    const [t1, h1] = profile[i + 1];
+    if (t >= t0 && t <= t1) {
+      const k = (t - t0) / (t1 - t0);
+      return h0 + (h1 - h0) * k;
+    }
+  }
+  return 0;
+}
 
 export const SENSOR_LENGTH = 220;
 
@@ -89,13 +118,42 @@ export class Track {
     const layout = TRACK_LAYOUTS[layoutName] || TRACK_LAYOUTS.Monaco;
     this.name = layoutName;
     this.width = layout.width;
+    this.layout = layout;
     this.points = [];
     this.innerPoints = [];
     this.outerPoints = [];
     this.tangents = [];
+    this.heights = [];
     this._buildCenterline(layout.points);
+    this._buildHeights(layout);
     this._buildGrid();
     this.mesh = this._buildMesh();
+  }
+
+  _buildHeights(layout) {
+    const n = this.points.length;
+    const profile = layout.elevation || [[0, 0], [1, 0]];
+    // Elevation meters are multiplied by TRACK_SCALE so they match the
+    // already-scaled XZ coordinates and slopes look correct.
+    for (let i = 0; i < n; i++) {
+      this.heights.push(sampleElevation(profile, i / n) * TRACK_SCALE);
+    }
+    // Smooth the heights with a rolling mean to hide any abrupt keyframe
+    // transitions across the 12 control points of Monaco.
+    const smooth = new Array(n);
+    const R = 6;
+    for (let i = 0; i < n; i++) {
+      let sum = 0;
+      for (let k = -R; k <= R; k++) sum += this.heights[(i + k + n) % n];
+      smooth[i] = sum / (R * 2 + 1);
+    }
+    this.heights = smooth;
+  }
+
+  getHeightAtProgress(progress) {
+    const n = this.heights.length;
+    if (n === 0) return 0;
+    return this.heights[((progress % n) + n) % n | 0];
   }
 
   _buildCenterline(rawCoords) {
@@ -249,7 +307,7 @@ export class Track {
     const p = this.points[0];
     const next = this.points[1];
     return {
-      pos: { x: p.x, z: p.z },
+      pos: { x: p.x, y: this.heights[0], z: p.z },
       angle: Math.atan2(next.z - p.z, next.x - p.x),
     };
   }
@@ -304,18 +362,19 @@ export class Track {
     const group = new THREE.Group();
     const n = this.points.length;
 
-    // Road surface as an indexed BufferGeometry ribbon
+    // Road surface as an indexed BufferGeometry ribbon — Y follows elevation
     const roadPositions = new Float32Array(n * 2 * 3);
     const roadUVs = new Float32Array(n * 2 * 2);
     const roadNormals = new Float32Array(n * 2 * 3);
     for (let i = 0; i < n; i++) {
       const inn = this.innerPoints[i];
       const out = this.outerPoints[i];
+      const y = this.heights[i] + 0.05;
       roadPositions[i * 6 + 0] = inn.x;
-      roadPositions[i * 6 + 1] = 0.05;
+      roadPositions[i * 6 + 1] = y;
       roadPositions[i * 6 + 2] = inn.z;
       roadPositions[i * 6 + 3] = out.x;
-      roadPositions[i * 6 + 4] = 0.05;
+      roadPositions[i * 6 + 4] = y;
       roadPositions[i * 6 + 5] = out.z;
       roadUVs[i * 4 + 0] = 0;
       roadUVs[i * 4 + 1] = i / 6;
@@ -346,12 +405,12 @@ export class Track {
     road.receiveShadow = true;
     group.add(road);
 
-    // Center racing line (white dashed)
+    // Center racing line (white dashed) — follows road surface Y
     const linePts = [];
     for (let i = 0; i < n; i += 2) {
-      linePts.push(new THREE.Vector3(this.points[i].x, 0.08, this.points[i].z));
+      linePts.push(new THREE.Vector3(this.points[i].x, this.heights[i] + 0.08, this.points[i].z));
     }
-    linePts.push(new THREE.Vector3(this.points[0].x, 0.08, this.points[0].z));
+    linePts.push(new THREE.Vector3(this.points[0].x, this.heights[0] + 0.08, this.points[0].z));
     const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
     const dashMat = new THREE.LineDashedMaterial({
       color: 0xffffff,
@@ -384,12 +443,13 @@ export class Track {
       const nx = -t.z, nz = t.x;
       const c = this.points[i];
 
-      dummy.position.set(c.x - nx * edgeOffset, 0.3, c.z - nz * edgeOffset);
+      const y = this.heights[i] + 0.3;
+      dummy.position.set(c.x - nx * edgeOffset, y, c.z - nz * edgeOffset);
       dummy.rotation.set(0, -ang, 0);
       dummy.updateMatrix();
       kerbMeshInner.setMatrixAt(k, dummy.matrix);
 
-      dummy.position.set(c.x + nx * edgeOffset, 0.3, c.z + nz * edgeOffset);
+      dummy.position.set(c.x + nx * edgeOffset, y, c.z + nz * edgeOffset);
       dummy.rotation.set(0, -ang, 0);
       dummy.updateMatrix();
       kerbMeshOuter.setMatrixAt(k, dummy.matrix);
@@ -408,7 +468,7 @@ export class Track {
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.1;
+    ground.position.y = -25;
     ground.receiveShadow = true;
     group.add(ground);
 
@@ -419,7 +479,7 @@ export class Track {
     startLine.rotation.x = -Math.PI / 2;
     const sp = this.points[0];
     const st = this.tangents[0];
-    startLine.position.set(sp.x, 0.1, sp.z);
+    startLine.position.set(sp.x, this.heights[0] + 0.1, sp.z);
     startLine.rotation.z = -Math.atan2(st.z, st.x);
     group.add(startLine);
 

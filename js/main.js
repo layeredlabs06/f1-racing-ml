@@ -192,7 +192,7 @@ function updateCamera() {
   const target = new THREE.Vector3();
 
   if (best) {
-    target.set(best.pos.x, 4, best.pos.z);
+    target.set(best.pos.x, (best.pos.y || 0) + 4, best.pos.z);
   } else {
     target.set(0, 4, 0);
   }
@@ -200,17 +200,18 @@ function updateCamera() {
   switch (state.cameraMode) {
     case 'chase': {
       if (!best) return;
+      const by = (best.pos.y || 0);
       const behind = 38;
       const height = 15;
       const ahead = 22;
       const bx = best.pos.x - Math.cos(best.angle) * behind;
       const bz = best.pos.z - Math.sin(best.angle) * behind;
-      cam.position.lerp(new THREE.Vector3(bx, height, bz), 0.06);
-      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, 3, best.pos.z);
+      cam.position.lerp(new THREE.Vector3(bx, by + height, bz), 0.06);
+      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, by + 3, best.pos.z);
       state.camLook.lerp(
         new THREE.Vector3(
           best.pos.x + Math.cos(best.angle) * ahead,
-          3,
+          by + 3,
           best.pos.z + Math.sin(best.angle) * ahead,
         ),
         0.08,
@@ -220,11 +221,12 @@ function updateCamera() {
     }
     case 'hero': {
       if (!best) return;
+      const by = (best.pos.y || 0);
       const side = Math.cos(best.angle) * 28 - Math.sin(best.angle) * 50;
       const fwd = Math.sin(best.angle) * 28 + Math.cos(best.angle) * 50;
-      cam.position.lerp(new THREE.Vector3(best.pos.x + side, 9, best.pos.z + fwd), 0.04);
-      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, 3, best.pos.z);
-      state.camLook.lerp(new THREE.Vector3(best.pos.x, 3, best.pos.z), 0.08);
+      cam.position.lerp(new THREE.Vector3(best.pos.x + side, by + 9, best.pos.z + fwd), 0.04);
+      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, by + 3, best.pos.z);
+      state.camLook.lerp(new THREE.Vector3(best.pos.x, by + 3, best.pos.z), 0.08);
       cam.lookAt(state.camLook);
       break;
     }
