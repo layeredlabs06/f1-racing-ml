@@ -3,38 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1 Racing ML 3D - Neural Network Evolution</title>
+  <title>F1 Racing ML - Neural Network Evolution</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
       overflow: hidden;
       background: #0a0e1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      color: #c0d8f0;
     }
-    #webgl {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      outline: none;
-    }
-    #hud {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 50;
-    }
+    canvas { display: block; }
+
     #controls {
       position: fixed;
-      top: 12px;
-      right: 12px;
+      top: 10px;
+      right: 10px;
       background: rgba(15, 20, 35, 0.9);
       border: 1px solid rgba(60, 130, 200, 0.3);
       border-radius: 10px;
@@ -42,15 +29,14 @@
       color: #c0d8f0;
       font-size: 13px;
       z-index: 100;
-      min-width: 220px;
+      min-width: 210px;
       backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
     }
     #controls h3 {
       margin: 0 0 10px 0;
       color: #fff;
       font-size: 14px;
-      border-bottom: 1px solid rgba(60, 130, 200, 0.25);
+      border-bottom: 1px solid rgba(60,130,200,0.2);
       padding-bottom: 6px;
     }
     .ctrl-row {
@@ -65,18 +51,20 @@
       accent-color: #ff9030;
     }
     .ctrl-row input[type="number"] {
-      width: 62px;
-      background: rgba(30, 40, 60, 0.8);
-      border: 1px solid rgba(60, 130, 200, 0.3);
+      width: 60px;
+      background: rgba(30,40,60,0.8);
+      border: 1px solid rgba(60,130,200,0.3);
       border-radius: 4px;
       color: #fff;
       padding: 3px 6px;
       text-align: center;
     }
-    .ctrl-row input[type="checkbox"] { accent-color: #ff9030; }
+    .ctrl-row input[type="checkbox"] {
+      accent-color: #ff9030;
+    }
     .ctrl-row select {
-      background: rgba(30, 40, 60, 0.8);
-      border: 1px solid rgba(60, 130, 200, 0.3);
+      background: rgba(30,40,60,0.8);
+      border: 1px solid rgba(60,130,200,0.3);
       border-radius: 4px;
       color: #fff;
       padding: 4px 8px;
@@ -84,30 +72,32 @@
       cursor: pointer;
     }
     .ctrl-row .val {
-      min-width: 32px;
+      min-width: 30px;
       text-align: right;
       color: #ff9030;
       font-weight: bold;
     }
     #controls button {
       width: 100%;
-      margin-top: 8px;
+      margin-top: 10px;
       padding: 8px;
-      background: rgba(255, 144, 48, 0.22);
-      border: 1px solid rgba(255, 144, 48, 0.45);
+      background: rgba(255, 144, 48, 0.2);
+      border: 1px solid rgba(255, 144, 48, 0.4);
       border-radius: 6px;
       color: #ff9030;
       font-weight: bold;
       cursor: pointer;
       font-size: 13px;
     }
-    #controls button:hover { background: rgba(255, 144, 48, 0.38); }
-    #toggleBtn {
+    #controls button:hover {
+      background: rgba(255, 144, 48, 0.35);
+    }
+    #toggle-btn {
       position: fixed;
-      top: 12px;
-      right: 12px;
+      top: 10px;
+      right: 10px;
       background: rgba(15, 20, 35, 0.8);
-      border: 1px solid rgba(60, 130, 200, 0.3);
+      border: 1px solid rgba(60,130,200,0.3);
       border-radius: 6px;
       color: #ff9030;
       padding: 6px 12px;
@@ -116,30 +106,9 @@
       z-index: 99;
       display: none;
     }
-    #legacyLink {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(150, 180, 220, 0.5);
-      font-size: 11px;
-      z-index: 50;
-      text-decoration: none;
-    }
-    #legacyLink:hover { color: rgba(255, 144, 48, 0.9); }
   </style>
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-    }
-  }
-  </script>
 </head>
 <body>
-  <canvas id="webgl"></canvas>
-  <canvas id="hud"></canvas>
-
   <div id="controls">
     <h3>Settings</h3>
     <div class="ctrl-row">
@@ -168,13 +137,28 @@
       <input type="checkbox" id="useTimeout">
       <input type="number" id="timeout" value="1200" min="300" max="5000" step="100" style="width:55px">
     </div>
-    <button id="applyBtn">Apply &amp; Restart</button>
-    <button id="hideBtn">Hide</button>
+    <button onclick="applySettings()">Apply & Restart</button>
+    <button onclick="document.getElementById('controls').style.display='none'; document.getElementById('toggle-btn').style.display='block'">Hide</button>
   </div>
-  <button id="toggleBtn">&#9881;</button>
+  <button id="toggle-btn" onclick="document.getElementById('controls').style.display='block'; this.style.display='none'">&#9881;</button>
 
-  <a id="legacyLink" href="legacy-2d/">← 2D version</a>
-
-  <script type="module" src="js/main.js?v=1"></script>
+  <script>
+    function applySettings() {
+      NUM_CARS = parseInt(document.getElementById('numCars').value) || 30;
+      SPEED_MULT = parseFloat(document.getElementById('speed').value) || 1.0;
+      MUTATION_RATE = parseFloat(document.getElementById('mutation').value) || 0.3;
+      USE_TIMEOUT = document.getElementById('useTimeout').checked;
+      MAX_FRAMES = parseInt(document.getElementById('timeout').value) || 1200;
+      const selectedTrack = document.getElementById('trackSelect').value;
+      changeTrack(selectedTrack);
+    }
+    document.getElementById('speed').addEventListener('input', e => {
+      document.getElementById('speedVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+    });
+    document.getElementById('mutation').addEventListener('input', e => {
+      document.getElementById('mutVal').textContent = parseFloat(e.target.value).toFixed(2);
+    });
+  </script>
+  <script src="sketch.js"></script>
 </body>
 </html>
