@@ -45,11 +45,11 @@ function init() {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a0e1a);
-  scene.fog = new THREE.Fog(0x0a0e1a, 900, 3200);
+  scene.fog = new THREE.Fog(0x0a0e1a, 1400, 5200);
   state.scene = scene;
 
   // Sky gradient dome
-  const skyGeo = new THREE.SphereGeometry(3500, 32, 16);
+  const skyGeo = new THREE.SphereGeometry(6500, 32, 16);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
@@ -75,19 +75,19 @@ function init() {
   const hemi = new THREE.HemisphereLight(0xbcd8ff, 0x1a2438, 0.55);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff1d0, 1.6);
-  sun.position.set(600, 900, 400);
+  sun.position.set(1200, 1800, 800);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 100;
-  sun.shadow.camera.far = 2500;
-  sun.shadow.camera.left = -1200;
-  sun.shadow.camera.right = 1200;
-  sun.shadow.camera.top = 1200;
-  sun.shadow.camera.bottom = -1200;
+  sun.shadow.camera.near = 200;
+  sun.shadow.camera.far = 6000;
+  sun.shadow.camera.left = -3200;
+  sun.shadow.camera.right = 3200;
+  sun.shadow.camera.top = 3200;
+  sun.shadow.camera.bottom = -3200;
   sun.shadow.bias = -0.0005;
   scene.add(sun);
 
-  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 6000);
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 11000);
   camera.position.set(0, 300, 400);
   state.camera = camera;
 
