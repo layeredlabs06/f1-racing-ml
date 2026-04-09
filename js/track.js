@@ -364,26 +364,32 @@ export class Track {
     centerLine.computeLineDistances();
     group.add(centerLine);
 
-    // Kerbs: alternating red/white blocks along inner and outer boundaries.
-    // Step size is tuned so kerbs appear roughly every few real-world meters.
-    const kerbGeo = new THREE.BoxGeometry(5, 0.5, 7);
+    // Kerbs: red on inside of corners, white on outside. Geometry is
+    // long (10) along the tangent and thin (3) across the track so
+    // the kerb sits flush against the track edge without eating into
+    // the drivable area. Local X = tangent, local Z = normal.
+    const kerbGeo = new THREE.BoxGeometry(10, 0.6, 3);
     const kerbRed = new THREE.MeshStandardMaterial({ color: 0xe8002d, roughness: 0.6 });
     const kerbWhite = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
-    const kerbStep = 6;
+    const kerbStep = 5;
     const kerbCount = Math.floor(n / kerbStep);
     const kerbMeshInner = new THREE.InstancedMesh(kerbGeo, kerbRed, kerbCount);
     const kerbMeshOuter = new THREE.InstancedMesh(kerbGeo, kerbWhite, kerbCount);
     const dummy = new THREE.Object3D();
+    const edgeOffset = this.width + 1.6; // push kerb centre just outside the track edge
     for (let k = 0; k < kerbCount; k++) {
       const i = k * kerbStep;
       const t = this.tangents[i];
       const ang = Math.atan2(t.z, t.x);
-      dummy.position.set(this.innerPoints[i].x, 0.15, this.innerPoints[i].z);
+      const nx = -t.z, nz = t.x;
+      const c = this.points[i];
+
+      dummy.position.set(c.x - nx * edgeOffset, 0.3, c.z - nz * edgeOffset);
       dummy.rotation.set(0, -ang, 0);
       dummy.updateMatrix();
       kerbMeshInner.setMatrixAt(k, dummy.matrix);
 
-      dummy.position.set(this.outerPoints[i].x, 0.15, this.outerPoints[i].z);
+      dummy.position.set(c.x + nx * edgeOffset, 0.3, c.z + nz * edgeOffset);
       dummy.rotation.set(0, -ang, 0);
       dummy.updateMatrix();
       kerbMeshOuter.setMatrixAt(k, dummy.matrix);
