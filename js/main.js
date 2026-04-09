@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { Track } from './track.js';
 import { Hud } from './hud.js';
 import { initialCars, nextGeneration } from './evolution.js';
-import { Fx } from './particles.js';
 
 const CAMERA_MODES = ['chase', 'top', 'hero', 'orbit'];
 
@@ -95,11 +94,7 @@ function init() {
 
   state.track = new Track(state.settings.trackName);
   scene.add(state.track.mesh);
-  state.fx = new Fx(scene);
   state.cars = initialCars(state);
-  state._wasAlive = new WeakSet();
-  for (const c of state.cars) state._wasAlive.add(c);
-  state._skidCooldown = 0;
 
   // HUD
   state.hud = new Hud(document.getElementById('hud'));
@@ -152,10 +147,6 @@ function setupControls() {
       state.cars = initialCars(state);
       state.frameCounter = 0;
     }
-    state._wasAlive = new WeakSet();
-    for (const c of state.cars) state._wasAlive.add(c);
-    state.followCar = null;
-    state.fx.reset();
   });
 
   $('hideBtn').addEventListener('click', () => {
@@ -201,7 +192,7 @@ function updateCamera() {
   const target = new THREE.Vector3();
 
   if (best) {
-    target.set(best.pos.x, (best.pos.y || 0) + 4, best.pos.z);
+    target.set(best.pos.x, 4, best.pos.z);
   } else {
     target.set(0, 4, 0);
   }
@@ -209,18 +200,17 @@ function updateCamera() {
   switch (state.cameraMode) {
     case 'chase': {
       if (!best) return;
-      const by = (best.pos.y || 0);
       const behind = 38;
       const height = 15;
       const ahead = 22;
       const bx = best.pos.x - Math.cos(best.angle) * behind;
       const bz = best.pos.z - Math.sin(best.angle) * behind;
-      cam.position.lerp(new THREE.Vector3(bx, by + height, bz), 0.06);
-      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, by + 3, best.pos.z);
+      cam.position.lerp(new THREE.Vector3(bx, height, bz), 0.06);
+      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, 3, best.pos.z);
       state.camLook.lerp(
         new THREE.Vector3(
           best.pos.x + Math.cos(best.angle) * ahead,
-          by + 3,
+          3,
           best.pos.z + Math.sin(best.angle) * ahead,
         ),
         0.08,
@@ -230,12 +220,11 @@ function updateCamera() {
     }
     case 'hero': {
       if (!best) return;
-      const by = (best.pos.y || 0);
       const side = Math.cos(best.angle) * 28 - Math.sin(best.angle) * 50;
       const fwd = Math.sin(best.angle) * 28 + Math.cos(best.angle) * 50;
-      cam.position.lerp(new THREE.Vector3(best.pos.x + side, by + 9, best.pos.z + fwd), 0.04);
-      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, by + 3, best.pos.z);
-      state.camLook.lerp(new THREE.Vector3(best.pos.x, by + 3, best.pos.z), 0.08);
+      cam.position.lerp(new THREE.Vector3(best.pos.x + side, 9, best.pos.z + fwd), 0.04);
+      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, 3, best.pos.z);
+      state.camLook.lerp(new THREE.Vector3(best.pos.x, 3, best.pos.z), 0.08);
       cam.lookAt(state.camLook);
       break;
     }
@@ -269,19 +258,7 @@ function tick() {
   let bestAnyScore = -Infinity;
   let aliveCount = 0;
   for (const car of state.cars) {
-    const wasAlive = state._wasAlive.has(car);
     car.update();
-    if (wasAlive && !car.alive && !car.finished) {
-      // Crash! spawn a burst of smoke where it died.
-      state.fx.spawnCrash(
-        car.pos.x,
-        (car.pos.y || 0) + 0.4,
-        car.pos.z,
-        Math.cos(car.angle) * car.speed,
-        Math.sin(car.angle) * car.speed,
-      );
-      state._wasAlive.delete(car);
-    }
     if (car.finished) {
       if (car.lapTime < state.genBestLap) state.genBestLap = car.lapTime;
       if (car.lapTime < state.bestLapTime) state.bestLapTime = car.lapTime;
@@ -301,16 +278,6 @@ function tick() {
   }
   state.bestCar = bestAlive || bestAny;
 
-  // Lay down skid marks behind the followed car — this draws the racing
-  // line the evolved brain is taking, and builds up across the generation.
-  state._skidCooldown--;
-  const followed = state.followCar;
-  if (followed && followed.alive && !followed.finished && state._skidCooldown <= 0) {
-    state.fx.spawnSkid(followed.pos.x, (followed.pos.y || 0), followed.pos.z, followed.angle, 4.5);
-    state._skidCooldown = 3;
-  }
-  state.fx.update();
-
   // Sticky camera subject: keep following the same car until it dies or
   // finishes — switching every frame to "whoever leads right now" is what
   // makes the view feel like it is teleporting between cars.
@@ -323,9 +290,6 @@ function tick() {
   state.frameCounter++;
   if (aliveCount === 0 || (state.settings.useTimeout && state.frameCounter > state.settings.maxFrames)) {
     nextGeneration(state);
-    state._wasAlive = new WeakSet();
-    for (const c of state.cars) state._wasAlive.add(c);
-    state.fx.reset();
   }
 
   updateCamera();
