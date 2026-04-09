@@ -133,10 +133,12 @@ export class Track {
   _buildHeights(layout) {
     const n = this.points.length;
     const profile = layout.elevation || [[0, 0], [1, 0]];
-    // Elevation meters are multiplied by TRACK_SCALE so they match the
-    // already-scaled XZ coordinates and slopes look correct.
+    // Elevation meters × TRACK_SCALE × a visual exaggeration factor, because
+    // real F1 grades are small (<10%) and would barely register in a chase
+    // camera that already tracks the car's Y position.
+    const EXAGGERATE = 2.5;
     for (let i = 0; i < n; i++) {
-      this.heights.push(sampleElevation(profile, i / n) * TRACK_SCALE);
+      this.heights.push(sampleElevation(profile, i / n) * TRACK_SCALE * EXAGGERATE);
     }
     // Smooth the heights with a rolling mean to hide any abrupt keyframe
     // transitions across the 12 control points of Monaco.
