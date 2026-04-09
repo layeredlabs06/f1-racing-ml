@@ -49,7 +49,7 @@ export class Hud {
     ctx.fillText(`C: camera (${state.cameraMode})   R: reset gen   drag: orbit`, 20, 88);
 
     // ─── Neural net panel (bottom-left) ──────────
-    const nnCar = state.bestCar || state.cars.find((c) => c.alive);
+    const nnCar = state.followCar || state.bestCar || state.cars.find((c) => c.alive);
     if (nnCar) {
       this._drawNN(ctx, nnCar.brain, nnCar.sensors, 16, h - 240, 220, 224);
     }

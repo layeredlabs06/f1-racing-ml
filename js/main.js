@@ -19,6 +19,7 @@ const state = {
   genBestLap: Infinity,
   lapHistory: [],
   bestCar: null,
+  followCar: null, // sticky — only reassigned when it dies/finishes or gen resets
   cameraMode: 'chase',
   settings: {
     numCars: 30,
@@ -187,7 +188,7 @@ function setupOrbitInput(canvas) {
 
 function updateCamera() {
   const cam = state.camera;
-  const best = state.bestCar;
+  const best = state.followCar || state.bestCar;
   const target = new THREE.Vector3();
 
   if (best) {
@@ -199,31 +200,39 @@ function updateCamera() {
   switch (state.cameraMode) {
     case 'chase': {
       if (!best) return;
-      const behind = 35;
-      const height = 14;
-      const ahead = 20;
+      const behind = 38;
+      const height = 15;
+      const ahead = 22;
       const bx = best.pos.x - Math.cos(best.angle) * behind;
       const bz = best.pos.z - Math.sin(best.angle) * behind;
-      cam.position.lerp(new THREE.Vector3(bx, height, bz), 0.12);
-      const look = new THREE.Vector3(
-        best.pos.x + Math.cos(best.angle) * ahead,
-        3,
-        best.pos.z + Math.sin(best.angle) * ahead,
+      cam.position.lerp(new THREE.Vector3(bx, height, bz), 0.06);
+      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, 3, best.pos.z);
+      state.camLook.lerp(
+        new THREE.Vector3(
+          best.pos.x + Math.cos(best.angle) * ahead,
+          3,
+          best.pos.z + Math.sin(best.angle) * ahead,
+        ),
+        0.08,
       );
-      cam.lookAt(look);
+      cam.lookAt(state.camLook);
       break;
     }
     case 'hero': {
       if (!best) return;
-      const side = Math.cos(best.angle) * 25 - Math.sin(best.angle) * 45;
-      const fwd = Math.sin(best.angle) * 25 + Math.cos(best.angle) * 45;
-      cam.position.lerp(new THREE.Vector3(best.pos.x + side, 8, best.pos.z + fwd), 0.08);
-      cam.lookAt(best.pos.x, 3, best.pos.z);
+      const side = Math.cos(best.angle) * 28 - Math.sin(best.angle) * 50;
+      const fwd = Math.sin(best.angle) * 28 + Math.cos(best.angle) * 50;
+      cam.position.lerp(new THREE.Vector3(best.pos.x + side, 9, best.pos.z + fwd), 0.04);
+      if (!state.camLook) state.camLook = new THREE.Vector3(best.pos.x, 3, best.pos.z);
+      state.camLook.lerp(new THREE.Vector3(best.pos.x, 3, best.pos.z), 0.08);
+      cam.lookAt(state.camLook);
       break;
     }
     case 'top': {
-      cam.position.lerp(new THREE.Vector3(target.x, 520, target.z + 40), 0.06);
-      cam.lookAt(target);
+      cam.position.lerp(new THREE.Vector3(target.x, 620, target.z + 60), 0.04);
+      if (!state.camLook) state.camLook = new THREE.Vector3(target.x, 0, target.z);
+      state.camLook.lerp(target, 0.06);
+      cam.lookAt(state.camLook);
       break;
     }
     case 'orbit':
@@ -268,6 +277,15 @@ function tick() {
     car.syncMesh();
   }
   state.bestCar = bestAlive || bestAny;
+
+  // Sticky camera subject: keep following the same car until it dies or
+  // finishes — switching every frame to "whoever leads right now" is what
+  // makes the view feel like it is teleporting between cars.
+  const cur = state.followCar;
+  const curValid = cur && cur.alive && !cur.finished && state.cars.includes(cur);
+  if (!curValid) {
+    state.followCar = bestAlive || bestAny;
+  }
 
   state.frameCounter++;
   if (aliveCount === 0 || (state.settings.useTimeout && state.frameCounter > state.settings.maxFrames)) {
