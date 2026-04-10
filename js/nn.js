@@ -1,7 +1,7 @@
 // Neural network (ported 1:1 from the 2D version)
 
-export const NUM_SENSORS = 5;
-export const HIDDEN_SIZE = 6;
+export const NUM_SENSORS = 7;
+export const HIDDEN_SIZE = 8;
 
 function randomGaussian(mean = 0, std = 1) {
   let u = 0, v = 0;

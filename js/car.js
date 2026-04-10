@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { NeuralCar, F1_TEAMS } from './nn.js?v=elev4';
-import { SENSOR_LENGTH } from './track.js?v=elev4';
+import { NeuralCar, F1_TEAMS } from './nn.js?v=elev5';
+import { SENSOR_LENGTH } from './track.js?v=elev5';
 
 const CAR_LENGTH = 14;
-const SENSOR_ANGLES = [-Math.PI / 2.5, -Math.PI / 5, 0, Math.PI / 5, Math.PI / 2.5];
+const SENSOR_ANGLES = [-Math.PI / 2, -Math.PI / 3, -Math.PI / 6, 0, Math.PI / 6, Math.PI / 3, Math.PI / 2];
 
 export class Car {
   constructor(track, brain, teamIdx, speedMult) {
@@ -41,8 +41,8 @@ export class Car {
     }
 
     const decision = this.brain.think(this.sensors);
-    this.angle += decision.steer * 0.08;
-    this.speed = (2.5 + (decision.gas + 1) * 2.8) * this.speedMult;
+    this.angle += decision.steer * 0.14;
+    this.speed = (2.0 + (decision.gas + 1) * 3.0) * this.speedMult;
 
     this.pos.x += Math.cos(this.angle) * this.speed;
     this.pos.z += Math.sin(this.angle) * this.speed;
