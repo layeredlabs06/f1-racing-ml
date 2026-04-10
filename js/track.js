@@ -563,7 +563,8 @@ export class Track {
     });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -25;
+    const minH = Math.min(...this.heights);
+    ground.position.y = minH - 25;
     ground.receiveShadow = true;
     group.add(ground);
 
