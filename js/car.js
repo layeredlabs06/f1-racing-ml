@@ -6,7 +6,7 @@ const CAR_LENGTH = 14;
 const SENSOR_ANGLES = [-Math.PI / 2.5, -Math.PI / 5, 0, Math.PI / 5, Math.PI / 2.5];
 
 export class Car {
-  constructor(track, brain, teamIdx, speedMult) {
+  constructor(track, brain, teamIdx, settings) {
     this.track = track;
     const start = track.getStartPos();
     this.pos = { x: start.pos.x, y: start.pos.y || 0, z: start.pos.z };
@@ -20,7 +20,7 @@ export class Car {
     this.stuckFrames = 0;
     this.lapTime = 0;
     this.finished = false;
-    this.speedMult = speedMult;
+    this.settings = settings;
     this.brain = brain || new NeuralCar();
     this.team = F1_TEAMS[teamIdx % F1_TEAMS.length];
     this.sensors = new Array(SENSOR_ANGLES.length).fill(0);
@@ -42,7 +42,7 @@ export class Car {
 
     const decision = this.brain.think(this.sensors);
     this.angle += decision.steer * 0.08;
-    this.speed = (2.5 + (decision.gas + 1) * 2.8) * this.speedMult;
+    this.speed = (2.5 + (decision.gas + 1) * 2.8) * this.settings.speedMult;
 
     this.pos.x += Math.cos(this.angle) * this.speed;
     this.pos.z += Math.sin(this.angle) * this.speed;

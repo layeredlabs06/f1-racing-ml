@@ -29,7 +29,7 @@ export function nextGeneration(state) {
     const parent = top[Math.floor(Math.random() * top.length)];
     const child = new NeuralCar(parent.brain.getWeights());
     child.mutate(settings.mutationRate);
-    const car = new Car(state.track, child, i, settings.speedMult);
+    const car = new Car(state.track, child, i, settings);
     newCars.push(car);
     state.scene.add(car.group);
   }
@@ -47,7 +47,7 @@ export function initialCars(state) {
   const { scene, track, settings } = state;
   const cars = [];
   for (let i = 0; i < settings.numCars; i++) {
-    const car = new Car(track, null, i, settings.speedMult);
+    const car = new Car(track, null, i, settings);
     cars.push(car);
     scene.add(car.group);
   }

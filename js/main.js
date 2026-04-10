@@ -119,7 +119,10 @@ function setupControls() {
     $('speedVal').textContent = (+$('speed').value).toFixed(1) + 'x';
     $('mutVal').textContent = (+$('mutation').value).toFixed(2);
   };
-  $('speed').addEventListener('input', sync);
+  $('speed').addEventListener('input', () => {
+    sync();
+    state.settings.speedMult = parseFloat($('speed').value) || 1.0;
+  });
   $('mutation').addEventListener('input', sync);
   sync();
 
