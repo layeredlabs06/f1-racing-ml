@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { Track } from './track.js?v=elev3';
-import { Hud } from './hud.js?v=elev3';
-import { initialCars, nextGeneration } from './evolution.js?v=elev3';
+import { Track } from './track.js?v=elev4';
+import { Hud } from './hud.js?v=elev4';
+import { initialCars, nextGeneration } from './evolution.js?v=elev4';
 
 const CAMERA_MODES = ['chase', 'top', 'hero', 'orbit'];
 
@@ -121,7 +121,9 @@ function setupControls() {
   };
   $('speed').addEventListener('input', () => {
     sync();
-    state.settings.speedMult = parseFloat($('speed').value) || 1.0;
+    const v = parseFloat($('speed').value) || 1.0;
+    state.settings.speedMult = v;
+    for (const c of state.cars) c.speedMult = v;
   });
   $('mutation').addEventListener('input', sync);
   sync();
