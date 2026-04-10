@@ -1,5 +1,5 @@
-import { NeuralCar } from './nn.js?v=elev2';
-import { Car } from './car.js?v=elev2';
+import { NeuralCar } from './nn.js?v=elev3';
+import { Car } from './car.js?v=elev3';
 
 export function nextGeneration(state) {
   const { cars, settings } = state;

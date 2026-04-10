@@ -1,6 +1,6 @@
 // 2D canvas overlay: neural network visualization + lap time graph.
 
-import { NUM_SENSORS, HIDDEN_SIZE } from './nn.js?v=elev2';
+import { NUM_SENSORS, HIDDEN_SIZE } from './nn.js?v=elev3';
 
 export class Hud {
   constructor(canvas) {

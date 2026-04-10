@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { NeuralCar, F1_TEAMS } from './nn.js?v=elev2';
-import { SENSOR_LENGTH } from './track.js?v=elev2';
+import { NeuralCar, F1_TEAMS } from './nn.js?v=elev3';
+import { SENSOR_LENGTH } from './track.js?v=elev3';
 
 const CAR_LENGTH = 14;
 const SENSOR_ANGLES = [-Math.PI / 2.5, -Math.PI / 5, 0, Math.PI / 5, Math.PI / 2.5];

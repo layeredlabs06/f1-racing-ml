@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { Track } from './track.js?v=elev2';
-import { Hud } from './hud.js?v=elev2';
-import { initialCars, nextGeneration } from './evolution.js?v=elev2';
+import { Track } from './track.js?v=elev3';
+import { Hud } from './hud.js?v=elev3';
+import { initialCars, nextGeneration } from './evolution.js?v=elev3';
 
 const CAMERA_MODES = ['chase', 'top', 'hero', 'orbit'];
 
